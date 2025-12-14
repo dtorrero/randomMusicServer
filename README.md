@@ -24,29 +24,6 @@ A lightweight, web-based music player that serves **MP3 + FLAC** from a local di
 
 ## Configuration
 
-Configuration is loaded from `.env` for both local development and Docker Compose.
-
-### Setup
-
-1. Copy the example configuration:
-
-```bash
-cp .env.example .env
-```
-
-2. Edit `.env` and set your music directory path:
-
-```bash
-# Local development
-MUSIC_DIR=/path/to/your/music
-DATA_DIR=./data
-SCAN_ON_START=true
-QUEUE_REFRESH_SECONDS=0
-
-# Docker Compose (host path that gets mounted)
-MUSIC_DIR_HOST=/path/to/your/music
-```
-
 ### Environment Variables
 
 | Variable | Default | Description |
@@ -55,28 +32,33 @@ MUSIC_DIR_HOST=/path/to/your/music
 | `DATA_DIR` | `/data` | Directory for cached cover art and app data |
 | `SCAN_ON_START` | `true` | Scan music directory on startup |
 | `QUEUE_REFRESH_SECONDS` | `0` | Auto-reshuffle interval (0=disabled) |
-| `MUSIC_DIR_HOST` | - | Host path for Docker volume mount |
+
+**For Docker Compose**: Edit the `volumes` section in `docker-compose.yml` to point to your music directory.
+
+**For Local Development**: Copy `.env.example` to `.env` and set `MUSIC_DIR` to your music folder path.
 
 ## Quick Start
 
-### Option 1: Docker Compose with Pre-built Image (Recommended)
+### Option 1: Docker Compose (Recommended)
 
 Best for production use. Uses pre-built multi-arch images from GitHub Container Registry.
 
 ```bash
-# 1. Configure your music directory
-cp .env.example .env
-# Edit .env and set MUSIC_DIR_HOST to your music folder
+# 1. Edit docker-compose.yml and update the volumes section:
+#    Change: /path/to/your/music:/music:ro
+#    To your actual music directory path
 
-# 2. Update docker-compose.yml with your GitHub username
-# (Replace GITHUB_USERNAME in the image: line)
-
-# 3. Start the server (automatically pulls image if not present)
+# 2. Start the server (automatically pulls image if not present)
 docker compose up -d
 
-# 4. Open in browser
+# 3. Open in browser
 open http://localhost:8000
 ```
+
+**The image `ghcr.io/dtorrero/random-music-server:latest` supports:**
+- Linux (amd64, arm64, armv7)
+- macOS (Intel and Apple Silicon)
+- Raspberry Pi
 
 **See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.**
 

@@ -1,10 +1,9 @@
 services:
   random-music:
     container_name: random-music-server
-    # Use pre-built multi-arch image from GitHub Container Registry
-    # Or uncomment 'build: .' below to build locally
-    image: ghcr.io/GITHUB_USERNAME/randommusicserver:latest
-    # build: .
+    # Pre-built multi-arch image from GitHub Container Registry
+    # Supports: linux/amd64, linux/arm64, linux/arm/v7
+    image: ghcr.io/dtorrero/random-music-server:latest
     ports:
       - "8000:8000"
     healthcheck:
@@ -13,15 +12,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    env_file:
-      - .env
     environment:
+      # Internal container paths (do not change these)
       - MUSIC_DIR=/music
       - DATA_DIR=/data
-      - SCAN_ON_START=${SCAN_ON_START}
-      # Set to non-zero to reshuffle occasionally (seconds). 0 disables.
-      - QUEUE_REFRESH_SECONDS=${QUEUE_REFRESH_SECONDS}
+      # Scan library on startup
+      - SCAN_ON_START=true
+      # Auto-reshuffle queue after N seconds (0 = disabled)
+      - QUEUE_REFRESH_SECONDS=0
     volumes:
-      - ${MUSIC_DIR_HOST}:/music:ro
-      - ${DATA_DIR}:/data
+      # CHANGE THIS: Point to your music directory on the host machine
+      # Example for Linux: /home/username/Music:/music:ro
+      # Example for macOS: /Users/username/Music:/music:ro
+      # Example for Windows: C:/Users/username/Music:/music:ro
+      - /path/to/your/music:/music:ro
+      # CHANGE THIS: Directory for application data (cover cache, etc.)
+      # This can be a relative path or absolute path
+      - ./data:/data
     restart: unless-stopped

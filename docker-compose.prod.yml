@@ -1,7 +1,11 @@
+# This file is deprecated - use docker-compose.yml instead
+# The main docker-compose.yml now contains production-ready configuration
+# with the official image: ghcr.io/dtorrero/random-music-server:latest
+
 services:
   random-music:
     container_name: random-music-server
-    image: ghcr.io/GITHUB_USERNAME/randommusicserver:latest
+    image: ghcr.io/dtorrero/random-music-server:latest
     ports:
       - "8000:8000"
     healthcheck:
