@@ -1,0 +1,27 @@
+services:
+  random-music:
+    container_name: random-music-server
+    # Use pre-built multi-arch image from GitHub Container Registry
+    # Or uncomment 'build: .' below to build locally
+    image: ghcr.io/GITHUB_USERNAME/randommusicserver:latest
+    # build: .
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    env_file:
+      - .env
+    environment:
+      - MUSIC_DIR=/music
+      - DATA_DIR=/data
+      - SCAN_ON_START=${SCAN_ON_START}
+      # Set to non-zero to reshuffle occasionally (seconds). 0 disables.
+      - QUEUE_REFRESH_SECONDS=${QUEUE_REFRESH_SECONDS}
+    volumes:
+      - ${MUSIC_DIR_HOST}:/music:ro
+      - ${DATA_DIR}:/data
+    restart: unless-stopped

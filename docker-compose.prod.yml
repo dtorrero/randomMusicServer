@@ -1,0 +1,21 @@
+services:
+  random-music:
+    container_name: random-music-server
+    image: ghcr.io/GITHUB_USERNAME/randommusicserver:latest
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      - MUSIC_DIR=/music
+      - DATA_DIR=/data
+      - SCAN_ON_START=true
+      - QUEUE_REFRESH_SECONDS=0
+    volumes:
+      - /path/to/your/music:/music:ro
+      - ./data:/data
+    restart: unless-stopped

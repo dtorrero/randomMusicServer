@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Random Music Server</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <main class="player">
+      <div class="nowplaying">
+        <div class="cover" id="cover"></div>
+        <div class="playerControls">
+          <div class="meta">
+            <div class="title" id="title">Loading…</div>
+            <div class="subtitle" id="subtitle"></div>
+          </div>
+
+          <div class="controls">
+            <button id="prevBtn">⏮ Previous</button>
+            <button id="playBtn">▶ Play</button>
+            <button id="pauseBtn" style="display:none;">⏸ Pause</button>
+            <button id="nextBtn">Next ⏭</button>
+          </div>
+
+          <div class="timeline">
+            <div class="time" id="time">0:00 / 0:00</div>
+            <input id="seek" type="range" min="0" max="1000" value="0" />
+          </div>
+
+          <div class="volume">
+            <div class="volumeLabel">
+              <span id="volumeIcon">🔊</span>
+              <span id="volumePercent">100%</span>
+            </div>
+            <input id="volumeSlider" type="range" min="0" max="100" value="100" />
+          </div>
+        </div>
+      </div>
+
+      <audio id="audio" preload="auto"></audio>
+    </main>
+
+    <aside class="queue" id="queue">
+      <div class="queueHeader">
+        <span>Queue</span>
+      </div>
+      <div class="queueContent">
+        <div class="queueSection">
+          <div class="queueLabel">Up Next</div>
+          <ul id="queueList" class="queueList"></ul>
+        </div>
+      </div>
+      <div class="queueFooter">
+        <button id="rescanBtn">🔄 Refresh Queue</button>
+      </div>
+    </aside>
+
+    <button id="toggleQueue" aria-label="Toggle Queue">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
