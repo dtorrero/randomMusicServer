@@ -3,7 +3,7 @@ services:
     container_name: random-music-server
     # Pre-built multi-arch image from GitHub Container Registry
     # Supports: linux/amd64, linux/arm64, linux/arm/v7
-    image: ghcr.io/dtorrero/random-music-server:latest
+    image: ghcr.io/dtorrero/randommusicserver:latest
     ports:
       - "8000:8000"
     healthcheck:
