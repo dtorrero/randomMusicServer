@@ -174,8 +174,9 @@ toggleQueueBtn.addEventListener('click', () => {
 
 // Auto-advance when track ends
 
-audio.addEventListener('ended', () => {
-  nextTrack().catch(() => {});
+audio.addEventListener('ended', async () => {
+  await api('/api/player/next', { method: 'POST' });
+  await refreshState(true);
 });
 
 // Seek bar
