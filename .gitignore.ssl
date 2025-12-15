@@ -1,0 +1,13 @@
+# SSL/TLS Certificate files - DO NOT COMMIT
+# Add these lines to your main .gitignore file
+
+# Certbot certificates and keys
+certbot/conf/
+certbot/www/
+
+# Nginx logs (if you enable logging to files)
+nginx/logs/
+*.log
+
+# Backup files
+certbot-backup-*.tar.gz
