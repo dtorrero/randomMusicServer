@@ -47,15 +47,21 @@ function renderQueue(queue, currentId) {
     
     const title = document.createElement('div');
     title.className = 'queueItemTitle';
-    title.textContent = item.filename || item.id;
+    // Use title if available, otherwise filename
+    title.textContent = item.title || item.filename || item.id;
     li.appendChild(title);
     
-    if (item.folder) {
-      const folder = document.createElement('div');
-      folder.className = 'queueItemFolder';
-      folder.textContent = item.folder;
-      li.appendChild(folder);
+    const details = document.createElement('div');
+    details.className = 'queueItemFolder';
+    // Show artist and album if available
+    const detailsText = [];
+    if (item.artist) detailsText.push(item.artist);
+    if (item.album) detailsText.push(item.album);
+    if (detailsText.length === 0 && item.folder) {
+      detailsText.push(item.folder);
     }
+    details.textContent = detailsText.join(' • ');
+    li.appendChild(details);
     
     li.addEventListener('click', () => jumpToTrack(item.id));
     queueListEl.appendChild(li);
@@ -77,27 +83,6 @@ function setCover(trackId) {
     coverEl.innerHTML = 'No cover';
   };
   coverEl.appendChild(img);
-}
-
-async function loadTrack(trackId, autoplay = false) {
-  currentId = trackId;
-  const meta = await api(`/api/tracks/${trackId}`);
-
-  titleEl.textContent = meta.filename;
-  subtitleEl.textContent = meta.folder || '';
-
-  setCover(trackId);
-
-  audio.src = `/api/tracks/${trackId}/stream`;
-  if (autoplay) {
-    try {
-      await audio.play();
-    } catch (err) {
-      console.error('Autoplay failed:', err);
-    }
-  } else {
-    updatePlayPauseButtons(false);
-  }
 }
 
 function updatePlayPauseButtons(isPlaying) {
@@ -246,6 +231,93 @@ document.addEventListener('click', (e) => {
     }
   }
 });
+
+// Media Session API support
+function updateMediaSession(meta) {
+  if (!('mediaSession' in navigator)) return;
+  
+  const artwork = [];
+  if (meta.id) {
+    artwork.push({
+      src: `/api/tracks/${meta.id}/cover`,
+      sizes: '512x512',
+      type: 'image/jpeg'
+    });
+  }
+  
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: meta.title || meta.filename || 'Unknown',
+    artist: meta.artist || meta.folder || '',
+    album: meta.album || '',
+    artwork: artwork
+  });
+  
+  // Set action handlers
+  navigator.mediaSession.setActionHandler('play', async () => {
+    try {
+      await audio.play();
+      updatePlayPauseButtons(true);
+    } catch (err) {
+      console.error('Media session play failed:', err);
+    }
+  });
+  
+  navigator.mediaSession.setActionHandler('pause', () => {
+    audio.pause();
+    updatePlayPauseButtons(false);
+  });
+  
+  navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+  navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+  
+  // Optional: seekforward/seekbackward
+  navigator.mediaSession.setActionHandler('seekbackward', () => {
+    audio.currentTime = Math.max(0, audio.currentTime - 10);
+  });
+  
+  navigator.mediaSession.setActionHandler('seekforward', () => {
+    audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+  });
+}
+
+// Update playback state for Media Session
+audio.addEventListener('play', () => {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = 'playing';
+  }
+});
+
+audio.addEventListener('pause', () => {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = 'paused';
+  }
+});
+
+// Update Media Session when track changes
+async function loadTrack(trackId, autoplay = false) {
+  currentId = trackId;
+  const meta = await api(`/api/tracks/${trackId}`);
+
+  titleEl.textContent = meta.title || meta.filename;
+  subtitleEl.textContent = meta.artist || meta.folder || '';
+
+  setCover(trackId);
+
+  audio.src = `/api/tracks/${trackId}/stream`;
+  
+  // Update Media Session
+  updateMediaSession(meta);
+  
+  if (autoplay) {
+    try {
+      await audio.play();
+    } catch (err) {
+      console.error('Autoplay failed:', err);
+    }
+  } else {
+    updatePlayPauseButtons(false);
+  }
+}
 
 // Init
 

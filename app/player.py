@@ -120,6 +120,11 @@ class PlayerState:
                     item["filename"] = t.filename
                     item["folder"] = t.folder
                     item["ext"] = t.ext
+                    item["artist"] = t.artist
+                    item["album"] = t.album
+                    item["title"] = t.title
+                    item["duration"] = t.duration
+                    item["track_number"] = t.track_number
                 
                 window.append(item)
             

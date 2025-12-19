@@ -5,6 +5,8 @@ import logging
 import os
 from typing import Dict, List, Optional, Tuple
 
+import mutagen
+
 from .models import Track
 
 
@@ -41,6 +43,40 @@ def _find_folder_cover(abs_folder: str) -> Optional[str]:
     return None
 
 
+def _extract_metadata(abs_path: str, filename: str) -> tuple[Optional[str], Optional[str], Optional[str], Optional[float], Optional[int]]:
+    """Extract metadata from audio file using mutagen.
+    Returns: (artist, album, title, duration, track_number)
+    """
+    try:
+        audio = mutagen.File(abs_path, easy=True)
+        if audio is None:
+            return None, None, None, None, None
+        
+        # Get basic metadata
+        artist = audio.get('artist', [None])[0] if 'artist' in audio else None
+        album = audio.get('album', [None])[0] if 'album' in audio else None
+        title = audio.get('title', [None])[0] if 'title' in audio else None
+        
+        # Get duration
+        duration = audio.info.length if hasattr(audio, 'info') and hasattr(audio.info, 'length') else None
+        
+        # Get track number
+        track_num = None
+        if 'tracknumber' in audio:
+            track_str = audio['tracknumber'][0]
+            if track_str:
+                # Handle formats like "1/10" or just "1"
+                try:
+                    track_num = int(track_str.split('/')[0])
+                except (ValueError, AttributeError):
+                    pass
+        
+        return artist, album, title, duration, track_num
+    except Exception as e:
+        logger.debug(f"Failed to extract metadata from {filename}: {e}")
+        return None, None, None, None, None
+
+
 def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
     tracks: Dict[str, Track] = {}
     order: List[str] = []
@@ -68,6 +104,13 @@ def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
             cover_rel = None
             if folder_cover is not None:
                 cover_rel = os.path.relpath(folder_cover, music_dir)
+            
+            # Extract metadata
+            artist, album, title, duration, track_number = _extract_metadata(abs_path, fn)
+            
+            # If title is not available, use filename without extension
+            if not title:
+                title = os.path.splitext(fn)[0]
 
             track = Track(
                 id=tid,
@@ -76,6 +119,11 @@ def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
                 folder=folder_rel if folder_rel != "." else "",
                 ext=ext,
                 cover_rel_path=cover_rel,
+                artist=artist,
+                album=album,
+                title=title,
+                duration=duration,
+                track_number=track_number,
             )
             tracks[tid] = track
             order.append(tid)

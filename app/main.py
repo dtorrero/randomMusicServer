@@ -178,6 +178,11 @@ def get_track(track_id: str) -> dict:
         "filename": t.filename,
         "folder": t.folder,
         "ext": t.ext,
+        "artist": t.artist,
+        "album": t.album,
+        "title": t.title,
+        "duration": t.duration,
+        "track_number": t.track_number,
     }
 
 

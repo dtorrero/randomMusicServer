@@ -12,3 +12,8 @@ class Track:
     folder: str
     ext: str
     cover_rel_path: Optional[str]
+    artist: Optional[str] = None
+    album: Optional[str] = None
+    title: Optional[str] = None
+    duration: Optional[float] = None  # in seconds
+    track_number: Optional[int] = None
