@@ -15,10 +15,46 @@ class PlayerState:
         self._pos: int = 0
         self._tracks: Dict[str, Track] = {}
         self._last_shuffle_seed: Optional[int] = None
+        self._mode: str = "full_random"  # "full_random" or "recent_albums"
+        self._time_margin_days: int = 7  # 7, 14, 30, 90 days
+        self._date_type: str = "mtime"  # "mtime" (modification) or "btime" (creation/birth)
 
     def set_library(self, tracks: Dict[str, Track], track_ids: List[str]) -> None:
         with self._lock:
             self._tracks = tracks
+            self._reshuffle_locked(track_ids)
+
+    def get_mode(self) -> str:
+        with self._lock:
+            return self._mode
+
+    def set_mode(self, mode: str, track_ids: List[str]) -> None:
+        with self._lock:
+            if mode not in ("full_random", "recent_albums"):
+                raise ValueError(f"Invalid mode: {mode}")
+            self._mode = mode
+            self._reshuffle_locked(track_ids)
+
+    def get_time_margin_days(self) -> int:
+        with self._lock:
+            return self._time_margin_days
+
+    def set_time_margin_days(self, days: int, track_ids: List[str]) -> None:
+        with self._lock:
+            if days not in (7, 14, 30, 90):
+                raise ValueError(f"Invalid time margin: {days}")
+            self._time_margin_days = days
+            self._reshuffle_locked(track_ids)
+
+    def get_date_type(self) -> str:
+        with self._lock:
+            return self._date_type
+
+    def set_date_type(self, date_type: str, track_ids: List[str]) -> None:
+        with self._lock:
+            if date_type not in ("mtime", "btime"):
+                raise ValueError(f"Invalid date type: {date_type}")
+            self._date_type = date_type
             self._reshuffle_locked(track_ids)
 
     def _reshuffle_locked(self, track_ids: List[str]) -> None:
@@ -27,7 +63,50 @@ class PlayerState:
             self._pos = 0
             return
 
-        self._queue = list(track_ids)
+        # Filter tracks based on mode
+        if self._mode == "recent_albums":
+            current_time = time.time()
+            margin_seconds = self._time_margin_days * 24 * 60 * 60
+            threshold = current_time - margin_seconds
+            
+            # Get unique folders with their date (mtime or btime based on setting)
+            folder_tracks: Dict[str, List[str]] = {}
+            folder_dates: Dict[str, float] = {}
+            
+            for tid in track_ids:
+                track = self._tracks.get(tid)
+                # Use the appropriate date based on date_type setting
+                if track:
+                    folder_date = None
+                    if self._date_type == "mtime" and track.folder_mtime:
+                        folder_date = track.folder_mtime
+                    elif self._date_type == "btime" and track.folder_btime:
+                        folder_date = track.folder_btime
+                    
+                    if folder_date is not None:
+                        if track.folder not in folder_tracks:
+                            folder_tracks[track.folder] = []
+                            folder_dates[track.folder] = folder_date
+                        folder_tracks[track.folder].append(tid)
+            
+            # Filter folders by date
+            recent_folders = [
+                folder for folder, date in folder_dates.items()
+                if date >= threshold
+            ]
+            
+            # Get all tracks from recent folders
+            filtered_track_ids = []
+            for folder in recent_folders:
+                filtered_track_ids.extend(folder_tracks[folder])
+            
+            # Don't fall back to all tracks - keep empty if no recent albums
+            # This will result in an empty queue
+        else:
+            # Full random mode - use all tracks
+            filtered_track_ids = track_ids
+
+        self._queue = list(filtered_track_ids)
         seed = int(time.time())
         self._last_shuffle_seed = seed
         rnd = random.Random(seed)
@@ -125,6 +204,7 @@ class PlayerState:
                     item["title"] = t.title
                     item["duration"] = t.duration
                     item["track_number"] = t.track_number
+                    item["folder_mtime"] = t.folder_mtime
                 
                 window.append(item)
             

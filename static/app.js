@@ -12,10 +12,19 @@ const toggleQueueBtn = document.getElementById('toggleQueue');
 const volumeSlider = document.getElementById('volumeSlider');
 const volumeIcon = document.getElementById('volumeIcon');
 const volumePercent = document.getElementById('volumePercent');
+const modeFullRandomBtn = document.getElementById('modeFullRandom');
+const modeRecentAlbumsBtn = document.getElementById('modeRecentAlbums');
+const timeMarginSelector = document.getElementById('timeMarginSelector');
+const timeMarginSelect = document.getElementById('timeMarginSelect');
+const dateTypeSelector = document.getElementById('dateTypeSelector');
+const dateTypeSelect = document.getElementById('dateTypeSelect');
 
 let currentId = null;
 let seeking = false;
 let wasPlaying = false;
+let currentMode = 'full_random';
+let currentTimeMarginDays = 7;
+let currentDateType = 'mtime';
 
 function fmtTime(sec) {
   if (!isFinite(sec) || sec < 0) return '0:00';
@@ -62,6 +71,17 @@ function renderQueue(queue, currentId) {
     }
     details.textContent = detailsText.join(' • ');
     li.appendChild(details);
+    
+    // Add creation date if available
+    if (item.folder_mtime) {
+      const dateInfo = document.createElement('div');
+      dateInfo.className = 'queueItemDate';
+      const date = new Date(item.folder_mtime * 1000);
+      const dateStr = date.toLocaleDateString();
+      const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      dateInfo.textContent = `Added: ${dateStr} ${timeStr}`;
+      li.appendChild(dateInfo);
+    }
     
     li.addEventListener('click', () => jumpToTrack(item.id));
     queueListEl.appendChild(li);
@@ -319,9 +339,171 @@ async function loadTrack(trackId, autoplay = false) {
   }
 }
 
-// Init
+// Mode switching
+function updateModeUI(mode, timeMarginDays, dateType) {
+  // Update button states
+  if (mode === 'full_random') {
+    modeFullRandomBtn.classList.add('active');
+    modeRecentAlbumsBtn.classList.remove('active');
+    timeMarginSelector.style.display = 'none';
+    dateTypeSelector.style.display = 'none';
+  } else {
+    modeFullRandomBtn.classList.remove('active');
+    modeRecentAlbumsBtn.classList.add('active');
+    timeMarginSelector.style.display = 'flex';
+    dateTypeSelector.style.display = 'flex';
+  }
+  
+  // Update time margin select
+  if (timeMarginDays) {
+    timeMarginSelect.value = timeMarginDays.toString();
+  }
+  
+  // Update date type select
+  if (dateType) {
+    dateTypeSelect.value = dateType;
+  }
+}
 
-refreshState(false).catch(err => {
-  titleEl.textContent = 'Failed to load';
-  subtitleEl.textContent = String(err);
+async function setMode(mode) {
+  try {
+    await api('/api/settings/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    currentMode = mode;
+    updateModeUI(mode, currentTimeMarginDays);
+    // Refresh state to get updated queue
+    const wasPlaying = !audio.paused;
+    await refreshState(wasPlaying);
+  } catch (err) {
+    console.error('Failed to set mode:', err);
+  }
+}
+
+async function setTimeMargin(days) {
+  try {
+    await api('/api/settings/time_margin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ days })
+    });
+    currentTimeMarginDays = days;
+    // Refresh state to get updated queue
+    const wasPlaying = !audio.paused;
+    await refreshState(wasPlaying);
+  } catch (err) {
+    console.error('Failed to set time margin:', err);
+  }
+}
+
+async function setDateType(dateType) {
+  try {
+    await api('/api/settings/date_type', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date_type: dateType })
+    });
+    currentDateType = dateType;
+    // Refresh state to get updated queue
+    const wasPlaying = !audio.paused;
+    await refreshState(wasPlaying);
+  } catch (err) {
+    console.error('Failed to set date type:', err);
+  }
+}
+
+// Event listeners for mode buttons
+modeFullRandomBtn.addEventListener('click', () => setMode('full_random'));
+modeRecentAlbumsBtn.addEventListener('click', () => setMode('recent_albums'));
+
+// Event listener for time margin select
+timeMarginSelect.addEventListener('change', (e) => {
+  const days = parseInt(e.target.value);
+  setTimeMargin(days);
+});
+
+// Event listener for date type select
+dateTypeSelect.addEventListener('change', (e) => {
+  const dateType = e.target.value;
+  setDateType(dateType);
+});
+
+// Load settings on init
+async function loadSettings() {
+  try {
+    const settings = await api('/api/settings');
+    currentMode = settings.mode;
+    currentTimeMarginDays = settings.time_margin_days;
+    currentDateType = settings.date_type || 'mtime';
+    updateModeUI(currentMode, currentTimeMarginDays, currentDateType);
+  } catch (err) {
+    console.error('Failed to load settings:', err);
+  }
+}
+
+// Enhanced refreshState to also update mode UI
+const originalRefreshState = refreshState;
+refreshState = async function(autoplay = false) {
+  const st = await api('/api/state');
+  
+  // Update mode, time margin, and date type from state
+  if (st.mode && st.mode !== currentMode) {
+    currentMode = st.mode;
+    currentTimeMarginDays = st.time_margin_days || 7;
+    currentDateType = st.date_type || 'mtime';
+    updateModeUI(currentMode, currentTimeMarginDays, currentDateType);
+  }
+  
+  // Also update date type if changed
+  if (st.date_type && st.date_type !== currentDateType) {
+    currentDateType = st.date_type;
+    dateTypeSelect.value = currentDateType;
+  }
+  
+  renderQueue(st.queue || [], st.current_id);
+
+  // Handle empty queue in recent albums mode
+  if (currentMode === 'recent_albums' && (!st.queue || st.queue.length === 0)) {
+    const timeMarginText = getTimeMarginText(currentTimeMarginDays);
+    const message = `No albums added ${timeMarginText}`;
+    // Display message in queue area
+    queueListEl.innerHTML = `<div class="no-albums-message">${message}</div>`;
+    
+    // Also update player UI to show no track is playing
+    titleEl.textContent = 'No recent albums';
+    subtitleEl.textContent = `Try a different time margin or switch to Full Random mode`;
+    coverEl.innerHTML = 'No music';
+    
+    // Stop audio if playing
+    if (!audio.paused) {
+      audio.pause();
+      updatePlayPauseButtons(false);
+    }
+    currentId = null;
+  } else if (st.current_id) {
+    if (currentId !== st.current_id) {
+      await loadTrack(st.current_id, autoplay);
+    }
+  }
+};
+
+// Helper function to get time margin text
+function getTimeMarginText(days) {
+  switch(days) {
+    case 7: return 'in the last week';
+    case 14: return 'in the last 2 weeks';
+    case 30: return 'in the last month';
+    case 90: return 'in the last 3 months';
+    default: return `in the last ${days} days`;
+  }
+}
+
+// Init
+loadSettings().then(() => {
+  refreshState(false).catch(err => {
+    titleEl.textContent = 'Failed to load';
+    subtitleEl.textContent = String(err);
+  });
 });

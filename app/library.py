@@ -94,6 +94,40 @@ def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
         folder_rel = os.path.relpath(root, music_dir)
         logger.info(f"  Folder {folder_count}: {folder_rel} ({len(audio_files)} audio files)")
 
+        # Get folder modification time (mtime)
+        folder_mtime = None
+        try:
+            folder_mtime = os.path.getmtime(root)
+        except OSError:
+            pass
+        
+        # Try to get folder creation time (birth time) if available
+        folder_btime = None
+        try:
+            # Use stat to get birth time
+            import subprocess
+            result = subprocess.run(['stat', '-c', '%W', root], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                btime_str = result.stdout.strip()
+                if btime_str and btime_str != '0':
+                    folder_btime = float(btime_str)
+        except (OSError, ValueError, ImportError):
+            pass
+        
+        # If no modification time, try to get newest file modification time
+        if folder_mtime is None:
+            newest_mtime = None
+            for fn in audio_files:
+                abs_path = os.path.join(root, fn)
+                try:
+                    file_mtime = os.path.getmtime(abs_path)
+                    if newest_mtime is None or file_mtime > newest_mtime:
+                        newest_mtime = file_mtime
+                except OSError:
+                    pass
+            folder_mtime = newest_mtime
+
         folder_cover = _find_folder_cover(root)
         for fn in sorted(audio_files):
             abs_path = os.path.join(root, fn)
@@ -124,6 +158,8 @@ def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
                 title=title,
                 duration=duration,
                 track_number=track_number,
+                folder_mtime=folder_mtime,
+                folder_btime=folder_btime,
             )
             tracks[tid] = track
             order.append(tid)

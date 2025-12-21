@@ -17,3 +17,5 @@ class Track:
     title: Optional[str] = None
     duration: Optional[float] = None  # in seconds
     track_number: Optional[int] = None
+    folder_mtime: Optional[float] = None  # folder modification time in seconds since epoch
+    folder_btime: Optional[float] = None  # folder creation/birth time in seconds since epoch

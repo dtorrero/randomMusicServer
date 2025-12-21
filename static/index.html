@@ -11,32 +11,55 @@
     <main class="player">
       <div class="nowplaying">
         <div class="cover" id="cover"></div>
-        <div class="playerControls">
-          <div class="meta">
-            <div class="title" id="title">Loading…</div>
-            <div class="subtitle" id="subtitle"></div>
-          </div>
+      <div class="playerControls">
+        <div class="meta">
+          <div class="title" id="title">Loading…</div>
+          <div class="subtitle" id="subtitle"></div>
+        </div>
 
-          <div class="controls">
-            <button id="prevBtn">⏮ Previous</button>
-            <button id="playBtn">▶ Play</button>
-            <button id="pauseBtn" style="display:none;">⏸ Pause</button>
-            <button id="nextBtn">Next ⏭</button>
-          </div>
+        <div class="controls">
+          <button id="prevBtn">⏮ Previous</button>
+          <button id="playBtn">▶ Play</button>
+          <button id="pauseBtn" style="display:none;">⏸ Pause</button>
+          <button id="nextBtn">Next ⏭</button>
+        </div>
 
-          <div class="timeline">
-            <div class="time" id="time">0:00 / 0:00</div>
-            <input id="seek" type="range" min="0" max="1000" value="0" />
+        <div class="modeControls">
+          <div class="modeSwitch">
+            <button id="modeFullRandom" class="modeBtn active">Full Random</button>
+            <button id="modeRecentAlbums" class="modeBtn">Recent Albums</button>
           </div>
-
-          <div class="volume">
-            <div class="volumeLabel">
-              <span id="volumeIcon">🔊</span>
-              <span id="volumePercent">100%</span>
-            </div>
-            <input id="volumeSlider" type="range" min="0" max="100" value="100" />
+          <div class="timeMarginSelector" id="timeMarginSelector" style="display: none;">
+            <div class="timeMarginLabel">Time margin:</div>
+            <select id="timeMarginSelect">
+              <option value="7">Last week</option>
+              <option value="14">Last 2 weeks</option>
+              <option value="30">Last month</option>
+              <option value="90">Last 3 months</option>
+            </select>
+          </div>
+          <div class="dateTypeSelector" id="dateTypeSelector" style="display: none;">
+            <div class="dateTypeLabel">Date type:</div>
+            <select id="dateTypeSelect">
+              <option value="mtime">Modification date</option>
+              <option value="btime">Creation date</option>
+            </select>
           </div>
         </div>
+
+        <div class="timeline">
+          <div class="time" id="time">0:00 / 0:00</div>
+          <input id="seek" type="range" min="0" max="1000" value="0" />
+        </div>
+
+        <div class="volume">
+          <div class="volumeLabel">
+            <span id="volumeIcon">🔊</span>
+            <span id="volumePercent">100%</span>
+          </div>
+          <input id="volumeSlider" type="range" min="0" max="100" value="100" />
+        </div>
+      </div>
       </div>
 
       <audio id="audio" preload="auto"></audio>

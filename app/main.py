@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .config import DATA_DIR, MUSIC_DIR, QUEUE_REFRESH_SECONDS, SCAN_ON_START
 from .covers import ensure_cover_cached
@@ -29,6 +30,18 @@ _tracks: Dict[str, Track] = {}
 _track_ids: List[str] = []
 _player = PlayerState()
 _library_lock = threading.RLock()
+
+
+class ModeRequest(BaseModel):
+    mode: str
+
+
+class TimeMarginRequest(BaseModel):
+    days: int
+
+
+class DateTypeRequest(BaseModel):
+    date_type: str
 
 
 @asynccontextmanager
@@ -114,7 +127,55 @@ def refresh_library() -> dict:
 @app.get("/api/state")
 def state() -> dict:
     _player.maybe_refresh_queue(_track_ids, QUEUE_REFRESH_SECONDS)
-    return _player.queue_window(window_size=10)
+    state_data = _player.queue_window(window_size=10)
+    # Add mode, time margin, and date type info to state
+    state_data["mode"] = _player.get_mode()
+    state_data["time_margin_days"] = _player.get_time_margin_days()
+    state_data["date_type"] = _player.get_date_type()
+    return state_data
+
+
+@app.get("/api/settings")
+def get_settings() -> dict:
+    """Get current player settings (mode, time margin, and date type)."""
+    return {
+        "mode": _player.get_mode(),
+        "time_margin_days": _player.get_time_margin_days(),
+        "date_type": _player.get_date_type(),
+        "available_modes": ["full_random", "recent_albums"],
+        "available_time_margins": [7, 14, 30, 90],
+        "available_date_types": ["mtime", "btime"]
+    }
+
+
+@app.post("/api/settings/mode")
+def set_mode(request: ModeRequest) -> dict:
+    """Set the player mode."""
+    try:
+        _player.set_mode(request.mode, _track_ids)
+        return {"ok": True, "mode": request.mode}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/settings/time_margin")
+def set_time_margin(request: TimeMarginRequest) -> dict:
+    """Set the time margin for recent albums mode."""
+    try:
+        _player.set_time_margin_days(request.days, _track_ids)
+        return {"ok": True, "time_margin_days": request.days}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/settings/date_type")
+def set_date_type(request: DateTypeRequest) -> dict:
+    """Set the date type for recent albums mode (mtime or btime)."""
+    try:
+        _player.set_date_type(request.date_type, _track_ids)
+        return {"ok": True, "date_type": request.date_type}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/library/info")

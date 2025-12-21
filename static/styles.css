@@ -115,6 +115,117 @@ html, body {
   width: 100%;
 }
 
+.modeControls {
+  width: 100%;
+  margin: 16px 0;
+}
+
+.modeSwitch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.modeBtn {
+  flex: 1;
+  padding: 10px 16px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.modeBtn.active {
+  background: var(--accent);
+  color: var(--text-bright);
+  border-color: var(--accent);
+}
+
+.modeBtn:hover:not(.active) {
+  background: var(--panel-hover);
+  border-color: var(--accent);
+}
+
+.timeMarginSelector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.timeMarginLabel {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+#timeMarginSelect {
+  flex: 1;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+#timeMarginSelect:hover {
+  border-color: var(--accent);
+}
+
+#timeMarginSelect:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(91, 158, 255, 0.2);
+}
+
+.dateTypeSelector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.dateTypeLabel {
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+#dateTypeSelect {
+  flex: 1;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+#dateTypeSelect:hover {
+  border-color: var(--accent);
+}
+
+#dateTypeSelect:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(91, 158, 255, 0.2);
+}
+
 button {
   background: var(--panel);
   color: var(--text);
@@ -292,6 +403,24 @@ input[type=range]::-moz-range-thumb {
   margin-top: 4px;
 }
 
+.queueItemDate {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.no-albums-message {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  margin: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .queueFooter {
   padding: 16px 24px;
   border-top: 1px solid var(--border);
@@ -448,4 +577,3 @@ input[type=range]::-moz-range-thumb {
     font-size: 32px;
   }
 }
-
