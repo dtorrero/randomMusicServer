@@ -1,11 +1,14 @@
+# Random Music Server with SSL on standard ports (80/443)
+# This is the main docker-compose file for production deployment with SSL
+# For personal settings, create a docker-compose.override.yml or use environment variables
+
 services:
   random-music:
     container_name: random-music-server
-    # Pre-built multi-arch image from GitHub Container Registry
-    # Supports: linux/amd64, linux/arm64, linux/arm/v7
     image: ghcr.io/dtorrero/randommusicserver:latest
-    ports:
-      - "8000:8000"
+    # Internal port only, not exposed externally (nginx handles external traffic)
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -13,12 +16,9 @@ services:
       retries: 3
       start_period: 10s
     environment:
-      # Internal container paths (do not change these)
       - MUSIC_DIR=/music
       - DATA_DIR=/data
-      # Scan library on startup
       - SCAN_ON_START=true
-      # Auto-reshuffle queue after N seconds (0 = disabled)
       - QUEUE_REFRESH_SECONDS=0
     volumes:
       # CHANGE THIS: Point to your music directory on the host machine
@@ -26,7 +26,56 @@ services:
       # Example for macOS: /Users/username/Music:/music:ro
       # Example for Windows: C:/Users/username/Music:/music:ro
       - /path/to/your/music:/music:ro
-      # CHANGE THIS: Directory for application data (cover cache, etc.)
-      # This can be a relative path or absolute path
+      # Directory for application data (cover cache, etc.)
       - ./data:/data
     restart: unless-stopped
+    networks:
+      - music-network
+
+  nginx:
+    container_name: nginx-ssl-proxy
+    image: nginx:alpine
+    ports:
+      - "80:80"    # HTTP
+      - "443:443"  # HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d-standard-ports:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - random-music
+    restart: unless-stopped
+    networks:
+      - music-network
+    # Add NET_BIND_SERVICE capability to bind to privileged ports
+    cap_add:
+      - NET_BIND_SERVICE
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    container_name: certbot
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+    networks:
+      - music-network
+
+networks:
+  music-network:
+    driver: bridge
+
+# Usage:
+# 1. Update the music volume path above
+# 2. Run: ./init-letsencrypt-standard-ports.sh your-domain.com your-email@example.com
+# 3. Start: docker compose up -d
+#
+# For personal settings, create docker-compose.override.yml with your specific paths
+# Example docker-compose.override.yml:
+# services:
+#   random-music:
+#     volumes:
+#       - /home/yourusername/Music:/music:ro

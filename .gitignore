@@ -1,3 +1,9 @@
+# Personal
+docker-compose-ssl-personal.yml
+nginx-personal/
+renew-ssl-personal.sh
+PERSONAL_DEPLOYMENT_INSTRUCTIONS.md
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -32,3 +38,13 @@ music/
 *.swp
 *.swo
 *~
+
+# Personal configuration files
+docker-compose-ssl-personal.yml
+docker-compose.personal.yml
+docker-compose.override.yml
+docker-compose.local.yml
+nginx-personal/
+certbot-personal/
+setup-ssl-personal.sh
+renew-ssl-personal.sh
