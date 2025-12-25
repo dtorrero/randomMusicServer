@@ -25,6 +25,14 @@ sudo apt update
 sudo apt install podman podman-compose
 ```
 
+**Important for Rootless Podman**: If running Podman rootless (default), configure it to use ports 80/443:
+```bash
+# Allow rootless Podman to bind to ports below 1024
+sudo sysctl net.ipv4.ip_unprivileged_port_start=80
+echo "net.ipv4.ip_unprivileged_port_start=80" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
 ### Step 2: Clone or Download the Project
 
 ```bash
@@ -295,6 +303,18 @@ podman-compose -f docker-compose.ssl-standard-ports.yml exec nginx nginx -t
 
 # Check nginx error logs
 podman-compose -f docker-compose.ssl-standard-ports.yml exec nginx tail -f /var/log/nginx/error.log
+```
+
+### Issue: Rootless Podman Cannot Bind to Ports 80/443
+If you see errors like "rootlessport cannot expose privileged port 80":
+```bash
+# Configure system to allow rootless Podman to use ports below 1024
+sudo sysctl net.ipv4.ip_unprivileged_port_start=80
+echo "net.ipv4.ip_unprivileged_port_start=80" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+
+# Verify the change
+sysctl net.ipv4.ip_unprivileged_port_start
 ```
 
 ### Issue: SELinux Blocking (RHEL/Fedora)
