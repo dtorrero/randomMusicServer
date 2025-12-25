@@ -41,7 +41,7 @@ services:
     # Add NET_BIND_SERVICE capability to bind to privileged ports
     cap_add:
       - NET_BIND_SERVICE
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: "/bin/sh -c 'nginx -g \"daemon off;\"'"
 
   certbot:
     container_name: certbot
