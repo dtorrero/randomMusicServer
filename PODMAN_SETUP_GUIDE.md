@@ -91,11 +91,19 @@ podman-compose -f docker-compose.ssl-standard-ports.yml restart nginx
    - Use `podman-compose` instead of `docker-compose`
    - If you don't have `podman-compose`, install it or use `podman compose` (with space)
 
-2. **Root vs Rootless**:
+2. **Image Name Resolution**:
+   - Docker Compose files use fully qualified image names (`docker.io/nginx:alpine`, `docker.io/certbot/certbot`)
+   - If you encounter "short-name" errors, configure Podman or pull images manually:
+     ```bash
+     podman pull docker.io/nginx:alpine
+     podman pull docker.io/certbot/certbot
+     ```
+
+3. **Root vs Rootless**:
    - If running Podman rootless, ports below 1024 may require additional setup
    - The nginx container has `NET_BIND_SERVICE` capability for port 80/443
 
-3. **Port Conflicts**:
+4. **Port Conflicts**:
    - Ensure ports 80 and 443 are free on your host
    ```bash
    sudo ss -tulpn | grep ':80\|:443'

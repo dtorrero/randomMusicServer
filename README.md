@@ -62,7 +62,25 @@ open http://localhost:8000
 
 **See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.**
 
-### Option 2: Local Development
+### Option 2: SSL Setup with Podman-Compose
+
+For production deployment with SSL/TLS encryption using Podman:
+
+```bash
+# 1. Follow the comprehensive SSL installation guide
+#    See: INSTALL_WITH_SSL_PODMAN.md
+
+# 2. Quick start:
+#    - Install Podman and podman-compose
+#    - Configure firewall for ports 80/443
+#    - Update docker-compose.ssl-standard-ports.yml with your music path
+#    - Run SSL initialization script
+#    - Start services with podman-compose
+
+# Full instructions: INSTALL_WITH_SSL_PODMAN.md
+```
+
+### Option 3: Local Development
 
 Best for development and testing.
 

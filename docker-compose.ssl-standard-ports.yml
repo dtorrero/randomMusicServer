@@ -24,7 +24,7 @@ services:
 
   nginx:
     container_name: nginx-ssl-proxy
-    image: nginx:alpine
+    image: docker.io/nginx:alpine
     ports:
       - "80:80"
       - "443:443"
@@ -45,7 +45,7 @@ services:
 
   certbot:
     container_name: certbot
-    image: certbot/certbot
+    image: docker.io/certbot/certbot
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot

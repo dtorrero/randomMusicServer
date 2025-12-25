@@ -230,7 +230,21 @@ server {
 
 ### 2. Enable HTTPS
 
-Use Let's Encrypt with Certbot or Caddy for automatic HTTPS.
+For comprehensive SSL/TLS setup with Podman and Let's Encrypt, see:
+- [INSTALL_WITH_SSL_PODMAN.md](INSTALL_WITH_SSL_PODMAN.md) - Complete SSL setup with podman-compose
+- [SSL_SETUP.md](SSL_SETUP.md) - General SSL configuration guide
+- [PODMAN_INSTALLATION_GUIDE.md](PODMAN_INSTALLATION_GUIDE.md) - Detailed Podman setup
+
+Quick SSL setup with podman-compose:
+```bash
+# 1. Install Podman and podman-compose
+# 2. Configure firewall for ports 80/443
+# 3. Update docker-compose.ssl-standard-ports.yml with your music path
+# 4. Run SSL initialization script
+# 5. Start services with podman-compose
+
+# Full instructions: INSTALL_WITH_SSL_PODMAN.md
+```
 
 ### 3. Resource Limits
 

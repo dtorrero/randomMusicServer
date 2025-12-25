@@ -204,6 +204,21 @@ sudo lsof -i :443
 podman network ls
 ```
 
+### Image Pull Issues (Short Name Resolution)
+If you see errors like "short-name did not resolve to an alias":
+```bash
+# Solution 1: Pull images manually with full names
+podman pull docker.io/nginx:alpine
+podman pull docker.io/certbot/certbot
+
+# Solution 2: Configure Podman to resolve short names
+sudo nano /etc/containers/registries.conf
+# Add: unqualified-search-registries = ["docker.io"]
+
+# Solution 3: Use the updated docker-compose files with fully qualified names
+# (Already done in the latest version)
+```
+
 ### Certificate Issues
 ```bash
 # Check certificate files
