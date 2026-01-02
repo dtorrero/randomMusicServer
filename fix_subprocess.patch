@@ -1,0 +1,28 @@
+--- a/app/library.py
++++ b/app/library.py
+@@ -106,15 +106,13 @@ def scan_library(music_dir: str) -> Tuple[Dict[str, Track], List[str]]:
+         except OSError:
+             pass
+         
+-        # Try to get folder creation time (birth time) if available
++        # Try to get folder creation time (birth time) using native Python
+         folder_btime = None
+         try:
+-            # Use stat to get birth time
+-            import subprocess
+-            result = subprocess.run(['stat', '-c', '%W', root], 
+-                                  capture_output=True, text=True)
+-            if result.returncode == 0:
+-                btime_str = result.stdout.strip()
+-                if btime_str and btime_str != '0':
+-                    folder_btime = float(btime_str)
+-        except (OSError, ValueError, ImportError):
++            import os
++            stat_info = os.stat(root)
++            # Try to get birth time (available on some systems)
++            # st_birthtime on macOS, st_ctime on Linux (close approximation)
++            folder_btime = getattr(stat_info, 'st_birthtime', None)
++            if folder_btime is None:
++                folder_btime = stat_info.st_ctime  # Fall back to creation time
++        except (OSError, AttributeError):
+             pass

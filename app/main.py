@@ -4,6 +4,8 @@ import logging
 import mimetypes
 import os
 import threading
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, List, Optional
 
@@ -42,6 +44,22 @@ class TimeMarginRequest(BaseModel):
 
 class DateTypeRequest(BaseModel):
     date_type: str
+
+
+class BatchRequest(BaseModel):
+    size: int = 50
+    mode: str = "full_random"
+    time_margin_days: int = 7
+    date_type: str = "mtime"
+    seed: Optional[str] = None
+
+
+class BatchResponse(BaseModel):
+    track_ids: List[str]
+    batch_id: str
+    generated_at: float
+    settings: dict
+    total_available: int
 
 
 @asynccontextmanager
@@ -287,6 +305,102 @@ def track_cover(track_id: str):
         raise HTTPException(status_code=404, detail="No cover")
 
     return FileResponse(abs_cover)
+
+
+@app.post("/api/queue/batch")
+def get_queue_batch(request: BatchRequest) -> BatchResponse:
+    """Generate a new queue batch for a client."""
+    import random
+    
+    with _library_lock:
+        # Validate inputs
+        if request.mode not in ("full_random", "recent_albums"):
+            raise HTTPException(status_code=400, detail=f"Invalid mode: {request.mode}")
+        if request.time_margin_days not in (7, 14, 30, 90):
+            raise HTTPException(status_code=400, detail=f"Invalid time margin: {request.time_margin_days}")
+        if request.date_type not in ("mtime", "btime"):
+            raise HTTPException(status_code=400, detail=f"Invalid date type: {request.date_type}")
+        
+        # Filter tracks based on mode (similar to PlayerState._reshuffle_locked)
+        if request.mode == "recent_albums":
+            current_time = time.time()
+            margin_seconds = request.time_margin_days * 24 * 60 * 60
+            threshold = current_time - margin_seconds
+            
+            # Get unique folders with their date
+            folder_tracks: Dict[str, List[str]] = {}
+            folder_dates: Dict[str, float] = {}
+            
+            for tid in _track_ids:
+                track = _tracks.get(tid)
+                if track:
+                    folder_date = None
+                    if request.date_type == "mtime" and track.folder_mtime:
+                        folder_date = track.folder_mtime
+                    elif request.date_type == "btime" and track.folder_btime:
+                        folder_date = track.folder_btime
+                    
+                    if folder_date is not None:
+                        if track.folder not in folder_tracks:
+                            folder_tracks[track.folder] = []
+                            folder_dates[track.folder] = folder_date
+                        folder_tracks[track.folder].append(tid)
+            
+            # Filter folders by date
+            recent_folders = [
+                folder for folder, date in folder_dates.items()
+                if date >= threshold
+            ]
+            
+            # Get all tracks from recent folders
+            filtered_track_ids = []
+            for folder in recent_folders:
+                filtered_track_ids.extend(folder_tracks[folder])
+        else:
+            # Full random mode - use all tracks
+            filtered_track_ids = _track_ids
+        
+        # If no tracks match the criteria, return empty batch
+        if not filtered_track_ids:
+            return BatchResponse(
+                track_ids=[],
+                batch_id=str(uuid.uuid4()),
+                generated_at=time.time(),
+                settings={
+                    "mode": request.mode,
+                    "time_margin_days": request.time_margin_days,
+                    "date_type": request.date_type
+                },
+                total_available=len(_track_ids)
+            )
+        
+        # Shuffle the filtered tracks
+        # Use seed if provided, otherwise generate random
+        if request.seed:
+            # Create deterministic random from seed
+            seed_hash = hash(request.seed) & 0xFFFFFFFF
+            rnd = random.Random(seed_hash)
+        else:
+            rnd = random.Random()
+        
+        shuffled = list(filtered_track_ids)
+        rnd.shuffle(shuffled)
+        
+        # Take requested size (or all if fewer available)
+        batch_size = min(request.size, len(shuffled))
+        batch_ids = shuffled[:batch_size]
+        
+        return BatchResponse(
+            track_ids=batch_ids,
+            batch_id=str(uuid.uuid4()),
+            generated_at=time.time(),
+            settings={
+                "mode": request.mode,
+                "time_margin_days": request.time_margin_days,
+                "date_type": request.date_type
+            },
+            total_available=len(filtered_track_ids)
+        )
 
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))

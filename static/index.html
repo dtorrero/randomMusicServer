@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Random Music Server</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  
+  <!-- Favicon links -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+  <link rel="manifest" href="/static/site.webmanifest">
+  <link rel="shortcut icon" href="/static/favicon.ico">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
 </head>
 <body>
   <div class="layout">
@@ -47,6 +56,11 @@
           </div>
         </div>
 
+        <div class="batchControls">
+          <div class="batchProgress" id="batchProgress">Track 1 of 50</div>
+          <button id="newBatchBtn" class="newBatchBtn">🔄 New Batch</button>
+        </div>
+
         <div class="timeline">
           <div class="time" id="time">0:00 / 0:00</div>
           <input id="seek" type="range" min="0" max="1000" value="0" />
@@ -87,6 +101,7 @@
     </button>
   </div>
 
+  <script src="/static/client-queue.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

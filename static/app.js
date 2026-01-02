@@ -18,13 +18,11 @@ const timeMarginSelector = document.getElementById('timeMarginSelector');
 const timeMarginSelect = document.getElementById('timeMarginSelect');
 const dateTypeSelector = document.getElementById('dateTypeSelector');
 const dateTypeSelect = document.getElementById('dateTypeSelect');
+const newBatchBtn = document.getElementById('newBatchBtn');
+const batchProgressEl = document.getElementById('batchProgress');
 
-let currentId = null;
 let seeking = false;
-let wasPlaying = false;
-let currentMode = 'full_random';
-let currentTimeMarginDays = 7;
-let currentDateType = 'mtime';
+let queueManager = null;
 
 function fmtTime(sec) {
   if (!isFinite(sec) || sec < 0) return '0:00';
@@ -44,9 +42,21 @@ async function api(path, opts) {
   return res.text();
 }
 
-function renderQueue(queue, currentId) {
+async function renderQueueFromManager() {
+  if (!queueManager) return;
+  
+  const queueWindow = queueManager.getQueueWindow();
+  const currentId = queueManager.currentTrackId();
+  
   queueListEl.innerHTML = '';
-  for (const item of queue) {
+  
+  // Show batch progress if element exists
+  if (batchProgressEl) {
+    const progress = queueManager.getProgress();
+    batchProgressEl.textContent = `Track ${progress.position + 1} of ${progress.total}`;
+  }
+  
+  for (const item of queueWindow) {
     const li = document.createElement('li');
     li.dataset.trackId = item.id;
     
@@ -54,44 +64,70 @@ function renderQueue(queue, currentId) {
       li.classList.add('current');
     }
     
-    const title = document.createElement('div');
-    title.className = 'queueItemTitle';
-    // Use title if available, otherwise filename
-    title.textContent = item.title || item.filename || item.id;
-    li.appendChild(title);
-    
-    const details = document.createElement('div');
-    details.className = 'queueItemFolder';
-    // Show artist and album if available
-    const detailsText = [];
-    if (item.artist) detailsText.push(item.artist);
-    if (item.album) detailsText.push(item.album);
-    if (detailsText.length === 0 && item.folder) {
-      detailsText.push(item.folder);
-    }
-    details.textContent = detailsText.join(' • ');
-    li.appendChild(details);
-    
-    // Add creation date if available
-    if (item.folder_mtime) {
-      const dateInfo = document.createElement('div');
-      dateInfo.className = 'queueItemDate';
-      const date = new Date(item.folder_mtime * 1000);
-      const dateStr = date.toLocaleDateString();
-      const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      dateInfo.textContent = `Added: ${dateStr} ${timeStr}`;
-      li.appendChild(dateInfo);
+    // Fetch track metadata for display
+    try {
+      const meta = await api(`/api/tracks/${item.id}`);
+      
+      const title = document.createElement('div');
+      title.className = 'queueItemTitle';
+      title.textContent = meta.title || meta.filename || item.id;
+      li.appendChild(title);
+      
+      const details = document.createElement('div');
+      details.className = 'queueItemFolder';
+      const detailsText = [];
+      if (meta.artist) detailsText.push(meta.artist);
+      if (meta.album) detailsText.push(meta.album);
+      if (detailsText.length === 0 && meta.folder) {
+        detailsText.push(meta.folder);
+      }
+      details.textContent = detailsText.join(' • ');
+      li.appendChild(details);
+      
+      // Add creation date if available
+      if (meta.folder_mtime) {
+        const dateInfo = document.createElement('div');
+        dateInfo.className = 'queueItemDate';
+        const date = new Date(meta.folder_mtime * 1000);
+        const dateStr = date.toLocaleDateString();
+        const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        dateInfo.textContent = `Added: ${dateStr} ${timeStr}`;
+        li.appendChild(dateInfo);
+      }
+    } catch (error) {
+      // Fallback if metadata fetch fails
+      const title = document.createElement('div');
+      title.className = 'queueItemTitle';
+      title.textContent = item.id;
+      li.appendChild(title);
+      
+      const details = document.createElement('div');
+      details.className = 'queueItemFolder';
+      details.textContent = 'Loading...';
+      li.appendChild(details);
     }
     
     li.addEventListener('click', () => jumpToTrack(item.id));
     queueListEl.appendChild(li);
   }
+  
+  // Show empty state if no tracks
+  if (queueWindow.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'no-albums-message';
+    emptyMsg.textContent = 'No tracks in queue. Try changing settings or getting a new batch.';
+    queueListEl.appendChild(emptyMsg);
+  }
 }
 
 async function jumpToTrack(trackId) {
-  const wasPlaying = !audio.paused;
-  await api(`/api/player/jump/${trackId}`, { method: 'POST' });
-  await refreshState(wasPlaying);
+  if (!queueManager) return;
+  
+  const success = queueManager.jumpTo(trackId);
+  if (success) {
+    await loadTrack(trackId, !audio.paused);
+    await renderQueueFromManager();
+  }
 }
 
 function setCover(trackId) {
@@ -115,39 +151,61 @@ function updatePlayPauseButtons(isPlaying) {
   }
 }
 
-async function refreshState(autoplay = false) {
-  const st = await api('/api/state');
-
-  renderQueue(st.queue || [], st.current_id);
-
-  if (st.current_id) {
-    if (currentId !== st.current_id) {
-      await loadTrack(st.current_id, autoplay);
-    }
+// Queue navigation with client queue manager
+async function nextTrack() {
+  if (!queueManager) return;
+  
+  const nextId = queueManager.next();
+  if (nextId) {
+    await loadTrack(nextId, !audio.paused);
+    await renderQueueFromManager();
+  } else {
+    // No tracks in queue
+    titleEl.textContent = 'No tracks';
+    subtitleEl.textContent = 'Get a new batch or change settings';
+    coverEl.innerHTML = 'No music';
+    audio.pause();
+    updatePlayPauseButtons(false);
   }
 }
 
-async function nextTrack() {
-  const wasPlaying = !audio.paused;
-  await api('/api/player/next', { method: 'POST' });
-  await refreshState(wasPlaying);
-}
-
 async function prevTrack() {
-  const wasPlaying = !audio.paused;
-  await api('/api/player/prev', { method: 'POST' });
-  await refreshState(wasPlaying);
+  if (!queueManager) return;
+  
+  const prevId = queueManager.prev();
+  if (prevId) {
+    await loadTrack(prevId, !audio.paused);
+    await renderQueueFromManager();
+  }
 }
 
 async function refreshQueue() {
   await api('/api/rescan', { method: 'POST' });
-  currentId = null;
-  const wasPlaying = !audio.paused;
-  await refreshState(wasPlaying);
+  // Queue manager will handle library changes on next batch request
+  if (queueManager) {
+    await queueManager.fetchNewBatch();
+    const currentId = queueManager.currentTrackId();
+    if (currentId) {
+      await loadTrack(currentId, !audio.paused);
+      await renderQueueFromManager();
+    }
+  }
+}
+
+async function getNewBatch() {
+  if (!queueManager) return;
+  
+  const success = await queueManager.fetchNewBatch();
+  if (success) {
+    const currentId = queueManager.currentTrackId();
+    if (currentId) {
+      await loadTrack(currentId, !audio.paused);
+    }
+    await renderQueueFromManager();
+  }
 }
 
 // Controls
-
 document.getElementById('nextBtn').addEventListener('click', nextTrack);
 document.getElementById('prevBtn').addEventListener('click', prevTrack);
 
@@ -167,6 +225,11 @@ pauseBtn.addEventListener('click', () => {
 
 document.getElementById('rescanBtn').addEventListener('click', refreshQueue);
 
+// New batch button
+if (newBatchBtn) {
+  newBatchBtn.addEventListener('click', getNewBatch);
+}
+
 // Audio event listeners for play/pause state
 audio.addEventListener('play', () => updatePlayPauseButtons(true));
 audio.addEventListener('pause', () => updatePlayPauseButtons(false));
@@ -178,10 +241,8 @@ toggleQueueBtn.addEventListener('click', () => {
 });
 
 // Auto-advance when track ends
-
 audio.addEventListener('ended', async () => {
-  await api('/api/player/next', { method: 'POST' });
-  await refreshState(true);
+  await nextTrack();
 });
 
 // Seek bar
@@ -315,7 +376,6 @@ audio.addEventListener('pause', () => {
 
 // Update Media Session when track changes
 async function loadTrack(trackId, autoplay = false) {
-  currentId = trackId;
   const meta = await api(`/api/tracks/${trackId}`);
 
   titleEl.textContent = meta.title || meta.filename;
@@ -366,51 +426,59 @@ function updateModeUI(mode, timeMarginDays, dateType) {
 }
 
 async function setMode(mode) {
-  try {
-    await api('/api/settings/mode', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode })
-    });
-    currentMode = mode;
-    updateModeUI(mode, currentTimeMarginDays);
-    // Refresh state to get updated queue
-    const wasPlaying = !audio.paused;
-    await refreshState(wasPlaying);
-  } catch (err) {
-    console.error('Failed to set mode:', err);
+  if (!queueManager) return;
+  
+  const newSettings = {
+    ...queueManager.settings,
+    mode: mode
+  };
+  
+  const success = await queueManager.changeSettings(newSettings);
+  if (success) {
+    updateModeUI(mode, newSettings.time_margin_days, newSettings.date_type);
+    const currentId = queueManager.currentTrackId();
+    if (currentId) {
+      await loadTrack(currentId, !audio.paused);
+      await renderQueueFromManager();
+    }
   }
 }
 
 async function setTimeMargin(days) {
-  try {
-    await api('/api/settings/time_margin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ days })
-    });
-    currentTimeMarginDays = days;
-    // Refresh state to get updated queue
-    const wasPlaying = !audio.paused;
-    await refreshState(wasPlaying);
-  } catch (err) {
-    console.error('Failed to set time margin:', err);
+  if (!queueManager) return;
+  
+  const newSettings = {
+    ...queueManager.settings,
+    time_margin_days: days
+  };
+  
+  const success = await queueManager.changeSettings(newSettings);
+  if (success) {
+    updateModeUI(newSettings.mode, days, newSettings.date_type);
+    const currentId = queueManager.currentTrackId();
+    if (currentId) {
+      await loadTrack(currentId, !audio.paused);
+      await renderQueueFromManager();
+    }
   }
 }
 
 async function setDateType(dateType) {
-  try {
-    await api('/api/settings/date_type', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date_type: dateType })
-    });
-    currentDateType = dateType;
-    // Refresh state to get updated queue
-    const wasPlaying = !audio.paused;
-    await refreshState(wasPlaying);
-  } catch (err) {
-    console.error('Failed to set date type:', err);
+  if (!queueManager) return;
+  
+  const newSettings = {
+    ...queueManager.settings,
+    date_type: dateType
+  };
+  
+  const success = await queueManager.changeSettings(newSettings);
+  if (success) {
+    updateModeUI(newSettings.mode, newSettings.time_margin_days, dateType);
+    const currentId = queueManager.currentTrackId();
+    if (currentId) {
+      await loadTrack(currentId, !audio.paused);
+      await renderQueueFromManager();
+    }
   }
 }
 
@@ -430,80 +498,48 @@ dateTypeSelect.addEventListener('change', (e) => {
   setDateType(dateType);
 });
 
-// Load settings on init
-async function loadSettings() {
-  try {
-    const settings = await api('/api/settings');
-    currentMode = settings.mode;
-    currentTimeMarginDays = settings.time_margin_days;
-    currentDateType = settings.date_type || 'mtime';
-    updateModeUI(currentMode, currentTimeMarginDays, currentDateType);
-  } catch (err) {
-    console.error('Failed to load settings:', err);
-  }
-}
-
-// Enhanced refreshState to also update mode UI
-const originalRefreshState = refreshState;
-refreshState = async function(autoplay = false) {
-  const st = await api('/api/state');
-  
-  // Update mode, time margin, and date type from state
-  if (st.mode && st.mode !== currentMode) {
-    currentMode = st.mode;
-    currentTimeMarginDays = st.time_margin_days || 7;
-    currentDateType = st.date_type || 'mtime';
-    updateModeUI(currentMode, currentTimeMarginDays, currentDateType);
-  }
-  
-  // Also update date type if changed
-  if (st.date_type && st.date_type !== currentDateType) {
-    currentDateType = st.date_type;
-    dateTypeSelect.value = currentDateType;
-  }
-  
-  renderQueue(st.queue || [], st.current_id);
-
-  // Handle empty queue in recent albums mode
-  if (currentMode === 'recent_albums' && (!st.queue || st.queue.length === 0)) {
-    const timeMarginText = getTimeMarginText(currentTimeMarginDays);
-    const message = `No albums added ${timeMarginText}`;
-    // Display message in queue area
-    queueListEl.innerHTML = `<div class="no-albums-message">${message}</div>`;
-    
-    // Also update player UI to show no track is playing
-    titleEl.textContent = 'No recent albums';
-    subtitleEl.textContent = `Try a different time margin or switch to Full Random mode`;
-    coverEl.innerHTML = 'No music';
-    
-    // Stop audio if playing
-    if (!audio.paused) {
-      audio.pause();
-      updatePlayPauseButtons(false);
-    }
-    currentId = null;
-  } else if (st.current_id) {
-    if (currentId !== st.current_id) {
-      await loadTrack(st.current_id, autoplay);
-    }
-  }
-};
-
-// Helper function to get time margin text
-function getTimeMarginText(days) {
-  switch(days) {
-    case 7: return 'in the last week';
-    case 14: return 'in the last 2 weeks';
-    case 30: return 'in the last month';
-    case 90: return 'in the last 3 months';
-    default: return `in the last ${days} days`;
-  }
-}
-
-// Init
-loadSettings().then(() => {
-  refreshState(false).catch(err => {
-    titleEl.textContent = 'Failed to load';
-    subtitleEl.textContent = String(err);
-  });
+// Update audio ended event to use queue manager
+audio.addEventListener('ended', async () => {
+  await nextTrack();
 });
+
+// Initialize the application
+async function initApp() {
+  try {
+    // Create queue manager
+    queueManager = new ClientQueueManager({
+      batchSize: 50,
+      prefetchThreshold: 10,
+      autoPrefetch: true,
+      confirmSettingsChange: true
+    });
+    
+    // Initialize queue manager
+    const initialTrackId = await queueManager.initialize();
+    
+    // Load initial track if available
+    if (initialTrackId) {
+      await loadTrack(initialTrackId, false);
+    }
+    
+    // Render initial queue
+    await renderQueueFromManager();
+    
+    // Update UI with current settings
+    const settings = queueManager.settings;
+    updateModeUI(settings.mode, settings.time_margin_days, settings.date_type);
+    
+    console.log('App initialized with personal queue');
+  } catch (error) {
+    console.error('Failed to initialize app:', error);
+    titleEl.textContent = 'Initialization failed';
+    subtitleEl.textContent = error.message || 'Check console for details';
+  }
+}
+
+// Start the application when DOM is loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

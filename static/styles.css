@@ -559,6 +559,45 @@ input[type=range]::-moz-range-thumb {
   }
 }
 
+/* Batch Controls */
+.batchControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.batchProgress {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.newBatchBtn {
+  padding: 8px 16px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.newBatchBtn:hover {
+  background: var(--panel-hover);
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
 /* Tablet Styles */
 @media (max-width: 1024px) and (min-width: 769px) {
   .queue {
@@ -575,5 +614,22 @@ input[type=range]::-moz-range-thumb {
 
   .meta .title {
     font-size: 32px;
+  }
+}
+
+/* Mobile adjustments for batch controls */
+@media (max-width: 768px) {
+  .batchControls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .batchProgress {
+    text-align: center;
+  }
+  
+  .newBatchBtn {
+    width: 100%;
   }
 }
