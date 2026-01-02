@@ -1,0 +1,42 @@
+# Random Music Server without SSL
+# Simple configuration running just the main server
+
+services:
+  random-music:
+    container_name: random-music-server
+    image: ghcr.io/dtorrero/randommusicserver:latest
+    ports:
+      - "8000:8000"  # Directly expose the application port
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      - MUSIC_DIR=/music
+      - DATA_DIR=/data
+      - SCAN_ON_START=false  # Set to false for faster startup
+      - QUEUE_REFRESH_SECONDS=0
+    volumes:
+      # Update this path to your actual music directory
+      # Example: /home/username/Music:/music:ro
+      - /path/to/your/music:/music:ro
+      # Directory for application data (cover cache, etc.)
+      - ./data:/data
+    restart: unless-stopped
+
+# Usage:
+# 1. Update the music volume path above to point to your music directory
+# 2. Run: docker compose -f docker-compose-no-ssl.yml up -d
+#    or with podman-compose: podman-compose -f docker-compose-no-ssl.yml up -d
+#
+# 3. Access the server at: http://localhost:8000
+#
+# To update the image:
+# docker compose -f docker-compose-no-ssl.yml pull
+# docker compose -f docker-compose-no-ssl.yml up -d --force-recreate
+#
+# Or with podman-compose:
+# podman-compose -f docker-compose-no-ssl.yml pull
+# podman-compose -f docker-compose-no-ssl.yml up -d --force-recreate
