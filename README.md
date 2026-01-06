@@ -198,6 +198,9 @@ ports:
   - "8080:8000"  # Use 8080 instead
 ```
 
+### Known Issues
+For a comprehensive list of known issues, limitations, and workarounds, see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 ## Development
 
 ### Local Development
